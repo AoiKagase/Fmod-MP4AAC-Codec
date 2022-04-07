@@ -1,0 +1,41 @@
+﻿  main.cpp
+libfaad.lib(decoder.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(decoder.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(common.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(common.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(bits.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(bits.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_dec.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_dec.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(mp4.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(mp4.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(syntax.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(syntax.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(output.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(output.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(filtbank.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(filtbank.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(drc.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(drc.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(error.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(error.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(ps_dec.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(ps_dec.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_qmf.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_qmf.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_hfgen.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_hfgen.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_hfadj.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_hfadj.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(hcr.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(hcr.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(specrec.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(specrec.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(huffman.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(huffman.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(pulse.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(pulse.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(rvlc.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(rvlc.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_syntax.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_syntax.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(mdct.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(mdct.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_dct.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_dct.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_fbt.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_fbt.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(ms.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(ms.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(is.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(is.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(pns.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(pns.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(tns.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(tns.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(lt_predict.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(lt_predict.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(ic_predict.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(ic_predict.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(ps_syntax.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(ps_syntax.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_huff.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_huff.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_tf_grid.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_tf_grid.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(sbr_e_nf.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(sbr_e_nf.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+libfaad.lib(cfft.obj) : warning LNK4099: PDB 'libfaad.pdb' が 'libfaad.lib(cfft.obj)' で、または 'D:\amx.git\FMOD-AAC-CODEC\Debug\libfaad.pdb' に見つかりません。デバッグ情報がないものとして、オブジェクトにリンクします。
+     ライブラリ .\Debug/codec_aac.lib とオブジェクト .\Debug/codec_aac.exp を作成中
+LINK : warning LNK4098: defaultlib 'MSVCRT' は他のライブラリの使用と競合しています。/NODEFAULTLIB:library を使用してください。
+  codec_aac.vcxproj -> D:\amx.git\FMOD-AAC-CODEC\x64\Debug\codec_aac.dll
+  指定されたファイルが見つかりません。
+C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(157,5): error MSB3073: コマンド "copy .\Debug\codec_aac.dll "..\T4EPlayer\plugins\"
+C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(157,5): error MSB3073: :VCEnd" はコード 1 で終了しました。
