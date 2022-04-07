@@ -222,11 +222,11 @@ FMOD_RESULT F_CALLBACK aacopen(FMOD_CODEC_STATE *codec, FMOD_MODE usermode, FMOD
 		//      mp4read_close();
 		return FMOD_ERR_INTERNAL;
 	}
-	else
-	{
-		memmove(x->fbuf, x->fbuf + byte, BUFFER_SIZE - byte);
-		x->fbuflen -= byte;
-	}
+	//else
+	//{
+	//	memmove(x->fbuf, x->fbuf + byte, BUFFER_SIZE - byte);
+	//	x->fbuflen -= byte;
+	//}
 
 	//if(! (x->neaac = NeAACDecOpen()))
 	//	return FMOD_ERR_INTERNAL;
@@ -321,7 +321,7 @@ FMOD_RESULT F_CALLBACK aacread(FMOD_CODEC_STATE *codec, void *buffer, unsigned i
 			buflen += info.samples * 2;
 		}
 	}
-	*read = buflen;
+	// *read = buflen;
 	if (eof) 
 		return FMOD_ERR_FILE_EOF;
 
