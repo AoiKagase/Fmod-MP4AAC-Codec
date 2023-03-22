@@ -20,19 +20,18 @@ typedef struct {
 
 } MP4HEADER;
 typedef struct {
-    unsigned int initbytes;
-    DWORD sr;
-    BYTE nch;
-    NeAACDecHandle neaac;
-    unsigned char fbuf[BUFFER_SIZE];
-    DWORD fbuflen;
+    DWORD sample_rates;
+    BYTE channels;
+    NeAACDecHandle aac;
+    unsigned char buffer[BUFFER_SIZE];
+    DWORD buflen;
 } info;
 
 static FMOD_CODEC_WAVEFORMAT    aacwaveformat;
-// openƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAƒtƒ@ƒCƒ‹‚©‚çƒf[ƒ^‚ğ“Ç‚İ‚ñ‚ÅƒfƒR[ƒh‚·‚é‚½‚ß‚Ég—p‚³‚ê‚Ü‚·B
+// openã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰ãƒ‡ãƒ¼ã‚¿ã‚’èª­ã¿è¾¼ã‚“ã§ãƒ‡ã‚³ãƒ¼ãƒ‰ã™ã‚‹ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã¾ã™ã€‚
 FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode, FMOD_CREATESOUNDEXINFO* userexinfo)
 {
-    // ƒtƒ@ƒCƒ‹‚©‚çƒf[ƒ^‚ğ“Ç‚İ‚ñ‚ÅAstate->plugindata‚É•Û‘¶‚·‚é
+    // ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰ãƒ‡ãƒ¼ã‚¿ã‚’èª­ã¿è¾¼ã‚“ã§ã€state->plugindataã«ä¿å­˜ã™ã‚‹
 
     if (!state) 
         return FMOD_ERR_INTERNAL;
@@ -75,123 +74,129 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
         return FMOD_ERR_INTERNAL;
 
     memset(x, 0, sizeof(info));
-
-    x->initbytes = 0;
-    if (!(x->neaac = NeAACDecOpen()))
-        return FMOD_ERR_INTERNAL;
-
-    if (x->initbytes < 0 || x->initbytes > BUFFER_SIZE)
+    if (!(x->aac = NeAACDecOpen()))
         return FMOD_ERR_INTERNAL;
 
     NeAACDecConfigurationPtr config;
     /* Set configuration */
-    config = NeAACDecGetCurrentConfiguration(x->neaac);
+    config = NeAACDecGetCurrentConfiguration(x->aac);
     config->outputFormat = FAAD_FMT_16BIT;
     config->downMatrix = 1;
     config->dontUpSampleImplicitSBR = 1;
     NeAACDecSetConfiguration(x->neaac, config);
 
     NeAACDecFrameInfo info;
-    if (NeAACDecInit2(x->neaac, chunk->data, *chunk->size - 8, &x->sr, &x->nch) != 0)
+    if (NeAACDecInit(x->aac, chunk->data, *chunk->size - 8, &x->sample_rates, &x->channels) != 0)
         return FMOD_ERR_INTERNAL;
 
-    void* samplebuffer = NeAACDecDecode(x->neaac, &info, chunk->data, *chunk->size - 8);
-    if (info.error == 0 && info.samplerate > 0)
-    {
-        FILE *fp = fopen("TEST.wav", "w");
-        fwrite(samplebuffer, info.samples, 1, fp);
-        fclose(fp);
-        state->plugindata = samplebuffer;
-        NeAACDecClose(x->neaac);
-        return FMOD_OK;
-    }
+    aacwaveformat.channels      = x->channels;
+    aacwaveformat.format        = FMOD_SOUND_FORMAT_PCM16;
+    aacwaveformat.frequency     = x->sample_rates;
+    aacwaveformat.pcmblocksize  = aacwaveformat.channels * 2;          2 = 16bit pcm 
+    aacwaveformat.lengthpcm     = 0xffffffff;// bytes converted to PCM samples ;
 
-    return FMOD_ERR_INTERNAL;
+    state->numsubsounds         = 0; //number of 'subsounds' in this sound.  For most codecs this is 0, only multi sound codecs such as FSB or CDDA have subsounds. 
+    state->waveformat           = &aacwaveformat;
 
-    /*
-    unsigned int samplerate_ = ((adts[1] & 0x07) << 1) | (adts[2] >> 7);
-    unsigned int channels_ = (adts[2] >> 3) & 0x0f;
-    unsigned int samplesize_;
+    state->plugindata           = x;
 
-    // Determine sample size
-    switch (adts[2] & 0x07)
-    {
-        case 0: // 960 samples per frame
-            samplesize_ = 960 * channels_ * 2;
-            break;
-        case 1: // 1024 samples per frame
-            samplesize_ = 1024 * channels_ * 2;
-            break;
-        case 2: // 480 samples per frame
-            samplesize_ = 480 * channels_ * 2;
-            break;
-        default:
-            return FMOD_ERR_FORMAT;
-    }
-
-    // Allocate buffer for decoded PCM data
-    unsigned char *buffer_ = new unsigned char[samplesize_];
-
-    // Return file size and handle
-    unsigned int filesize = length_ - sizeof(adts);
-
-    aacwaveformat.channels = channels_;
-    aacwaveformat.format = FMOD_SOUND_FORMAT_PCM16;
-    aacwaveformat.frequency = samplerate_;
-    aacwaveformat.pcmblocksize = samplesize_;//aacwaveformat.channels * 2;          2 = 16bit pcm 
-    aacwaveformat.lengthpcm = filesize;// codec->filesize;// / aacwaveformat.blockalign;   bytes converted to PCM samples ;
-
-    state->numsubsounds = 0;                     number of 'subsounds' in this sound.  For most codecs this is 0, only multi sound codecs such as FSB or CDDA have subsounds. 
-    state->waveformat = &aacwaveformat;
-*/
-};
-
-// closeƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAƒfƒR[ƒh‚µ‚½ƒf[ƒ^‚ğ‰ğ•ú‚·‚é‚½‚ß‚Ég—p‚³‚ê‚Ü‚·B
-FMOD_RESULT F_CALLBACK myCodec_close(FMOD_CODEC_STATE* state){
-    // ƒfƒR[ƒh‚µ‚½ƒf[ƒ^‚ğ‰ğ•ú‚·‚é
     return FMOD_OK;
 };
 
-// readƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAƒfƒR[ƒh‚µ‚½ƒf[ƒ^‚ğ•Ô‚·‚½‚ß‚Ég—p‚³‚ê‚Ü‚·B
+// closeã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€ãƒ‡ã‚³ãƒ¼ãƒ‰ã—ãŸãƒ‡ãƒ¼ã‚¿ã‚’è§£æ”¾ã™ã‚‹ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã¾ã™ã€‚
+FMOD_RESULT F_CALLBACK myCodec_close(FMOD_CODEC_STATE* state){
+    // ãƒ‡ã‚³ãƒ¼ãƒ‰ã—ãŸãƒ‡ãƒ¼ã‚¿ã‚’è§£æ”¾ã™ã‚‹
+	info* x = (info*)codec->plugindata;
+	NeAACDecClose(x->aac);
+	delete(x);    
+    return FMOD_OK;
+};
+
+// readã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€ãƒ‡ã‚³ãƒ¼ãƒ‰ã—ãŸãƒ‡ãƒ¼ã‚¿ã‚’è¿”ã™ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã¾ã™ã€‚
 FMOD_RESULT F_CALLBACK myCodec_read(FMOD_CODEC_STATE* state, void* buffer, unsigned int sizebytes, unsigned int* bytesread)
 {
-    // ƒfƒR[ƒh‚µ‚½ƒf[ƒ^‚ğbuffer‚ÉƒRƒs[‚·‚é
-    *bytesread = sizebytes;
-    return FMOD_OK;
+    // ãƒ‡ã‚³ãƒ¼ãƒ‰ã—ãŸãƒ‡ãƒ¼ã‚¿ã‚’bufferã«ã‚³ãƒ”ãƒ¼ã™ã‚‹
+	memset(buffer, 0, sizebytes);
+
+	if(size < 4096 * 2) {
+		*bytesread = size;
+		return FMOD_OK;
+	}
+	info* x = (info*)codec->plugindata;
+	if(!x || !bytesread)
+		return FMOD_ERR_INTERNAL;
+
+	void* buf = NULL;
+	unsigned int buflen = 0;
+	unsigned int r;
+	
+	NeAACDecFrameInfo info;
+
+	bool eof = false;
+	while(buflen < sizebytes || eof){
+		do {
+			r = 0;
+			FMOD_RESULT res;
+			buf = NeAACDecDecode(x->aac, &info, x->buffer, x->buflen);
+
+			if (info.error != 0) {
+				*bytesread = 0;
+				return FMOD_ERR_FILE_BAD;
+			}
+			if (info.bytesconsumed > x->buflen) {
+				x->buflen = 0;
+			} else {
+				x->buflen -= info.bytesconsumed;
+				memmove(x->buffer, x->buffer + info.bytesconsumed, x->buflen); // shift remaining data to start of buffer
+			}
+		} while (!info.samples || eof);
+		if(info.samples != 0) {
+			if (!buf)
+				return FMOD_ERR_INTERNAL;
+			memcpy((unsigned char*)buffer + buflen, buf, info.samples * 2);
+			buflen += info.samples * 2;
+		}
+	}
+    *read = buflen;
+
+	if(eof) 
+        return FMOD_ERR_FILE_EOF;
+
+	return FMOD_OK;
 };
 
-// getlengthƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAƒI[ƒfƒBƒIƒtƒ@ƒCƒ‹‚Ì’·‚³‚ğ•Ô‚·‚½‚ß‚Ég—p‚³‚ê‚Ü‚·B
+// getlengthã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€ã‚ªãƒ¼ãƒ‡ã‚£ã‚ªãƒ•ã‚¡ã‚¤ãƒ«ã®é•·ã•ã‚’è¿”ã™ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã¾ã™ã€‚
 FMOD_RESULT F_CALLBACK myCodec_getlength(FMOD_CODEC_STATE* state, unsigned int* length, FMOD_TIMEUNIT lengthtype)
 {
-    // ƒI[ƒfƒBƒIƒtƒ@ƒCƒ‹‚Ì’·‚³‚ğŒvZ‚·‚é
-    *length = 0;
+    // ã‚ªãƒ¼ãƒ‡ã‚£ã‚ªãƒ•ã‚¡ã‚¤ãƒ«ã®é•·ã•ã‚’è¨ˆç®—ã™ã‚‹
+//    *length = 0;
     return FMOD_OK;
 };
 
-// setpositionƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAÄ¶ˆÊ’u‚ğİ’è‚·‚é‚½‚ß‚Ég—p‚³‚ê‚Ü‚·B
+// setpositionã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€å†ç”Ÿä½ç½®ã‚’è¨­å®šã™ã‚‹ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã¾ã™ã€‚
 FMOD_RESULT F_CALLBACK myCodec_setposition(FMOD_CODEC_STATE* state, int subsound, unsigned int position, FMOD_TIMEUNIT postype)
 {
-    // Ä¶ˆÊ’u‚ğİ’è‚·‚é
+    // å†ç”Ÿä½ç½®ã‚’è¨­å®šã™ã‚‹
     return FMOD_OK;
 };
 
-// getpositionƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAÄ¶ˆÊ’u‚ğæ“¾‚·‚é‚½‚ß‚Ég—p‚³‚ê‚Ü‚·B
+// getpositionã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€å†ç”Ÿä½ç½®ã‚’å–å¾—ã™ã‚‹ãŸã‚ã«ä½¿ç”¨ã•ã‚Œã¾ã™ã€‚
 FMOD_RESULT F_CALLBACK myCodec_getposition(FMOD_CODEC_STATE* state, unsigned int* position, FMOD_TIMEUNIT postype)
 {
-    // Ä¶ˆÊ’u‚ğİ’è‚·‚é
+    // å†ç”Ÿä½ç½®ã‚’è¨­å®šã™ã‚‹
     return FMOD_OK;
 };
 
-// soundcreatedƒR[ƒ‹ƒoƒbƒNŠÖ”‚ÍAƒTƒEƒ“ƒh‚ªì¬‚³‚ê‚½‚Æ‚«‚ÉŒÄ‚Ño‚³‚ê‚Ü‚·B
+// soundcreatedã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯é–¢æ•°ã¯ã€ã‚µã‚¦ãƒ³ãƒ‰ãŒä½œæˆã•ã‚ŒãŸã¨ãã«å‘¼ã³å‡ºã•ã‚Œã¾ã™ã€‚
 FMOD_RESULT F_CALLBACK myCodec_soundcreated(FMOD_CODEC_STATE* state, int subsound, FMOD_SOUND* sound)
 {
-    // ƒTƒEƒ“ƒh‚ªì¬‚³‚ê‚½‚Æ‚«‚Ìˆ—
+    // ã‚µã‚¦ãƒ³ãƒ‰ãŒä½œæˆã•ã‚ŒãŸã¨ãã®å‡¦ç†
     return FMOD_OK;
 };
 
 FMOD_RESULT F_CALLBACK myCodec_getWaveFormat(FMOD_CODEC_STATE* state, int index, FMOD_CODEC_WAVEFORMAT* waveformat)
 {
-    // ƒI[ƒfƒBƒIƒtƒ@ƒCƒ‹‚ÌŒ`®î•ñ‚ğæ“¾‚·‚é
+    // ã‚ªãƒ¼ãƒ‡ã‚£ã‚ªãƒ•ã‚¡ã‚¤ãƒ«ã®å½¢å¼æƒ…å ±ã‚’å–å¾—ã™ã‚‹
     return FMOD_OK;
 };
 
@@ -218,19 +223,19 @@ FMOD_RESULT F_CALLBACK myCodec_getWaveFormat(FMOD_CODEC_STATE* state, int index,
 */
 
 FMOD_CODEC_DESCRIPTION myCodec = {
-    FMOD_CODEC_PLUGIN_VERSION,      // ƒo[ƒWƒ‡ƒ“”Ô†
-    "FMOD MP4/AAC Codec",           // ƒR[ƒfƒbƒN‚Ì–¼‘O
-    0x00010000,                     // ƒhƒ‰ƒCƒo[‚Ìƒo[ƒWƒ‡ƒ“”Ô†
+    FMOD_CODEC_PLUGIN_VERSION,      // ãƒãƒ¼ã‚¸ãƒ§ãƒ³ç•ªå·
+    "FMOD MP4/AAC Codec",           // ã‚³ãƒ¼ãƒ‡ãƒƒã‚¯ã®åå‰
+    0x00010000,                     // ãƒ‰ãƒ©ã‚¤ãƒãƒ¼ã®ãƒãƒ¼ã‚¸ãƒ§ãƒ³ç•ªå·
     0,                              // Default As Stream
     FMOD_TIMEUNIT_MS | FMOD_TIMEUNIT_PCM, // Timeunit
-    &myCodec_open,                   // openƒR[ƒ‹ƒoƒbƒN
-    &myCodec_close,                  // closeƒR[ƒ‹ƒoƒbƒN
-    &myCodec_read,                   // readƒR[ƒ‹ƒoƒbƒN
-    &myCodec_getlength,              // getlengthƒR[ƒ‹ƒoƒbƒN
-    &myCodec_setposition,            // setpositionƒR[ƒ‹ƒoƒbƒN
-    &myCodec_getposition,            // setpositionƒR[ƒ‹ƒoƒbƒN
-    &myCodec_soundcreated,           // soundcreatedƒR[ƒ‹ƒoƒbƒN
-    &myCodec_getWaveFormat           // getWaveFormatExƒR[ƒ‹ƒoƒbƒN
+    &myCodec_open,                   // openã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_close,                  // closeã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_read,                   // readã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_getlength,              // getlengthã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_setposition,            // setpositionã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_getposition,            // setpositionã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_soundcreated,           // soundcreatedã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
+    &myCodec_getWaveFormat           // getWaveFormatExã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯
 };
 
 /*
