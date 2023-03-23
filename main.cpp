@@ -1,10 +1,13 @@
-#include "neaacdec.h"
-#include "fmod.h"
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <string>
+#include <cstdio>
+#include <cstdlib>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 //#include <winsock2.h>
 //#include "fmod_errors.h"
+#include "neaacdec.h"
+#include "fmod.h"
 
 #define MAX_CHANNELS 8
 #define BUFFER_SIZE (FAAD_MIN_STREAMSIZE * MAX_CHANNELS)
@@ -21,15 +24,69 @@ typedef struct {
     BYTE* data;
 
 } MP4HEADER;
+
 typedef struct {
     DWORD sample_rates;
     BYTE channels;
     NeAACDecHandle aac;
     unsigned char buffer[BUFFER_SIZE];
     DWORD buflen;
-} info;
+    unsigned int initbytes;
 
+} info;
 static FMOD_CODEC_WAVEFORMAT    aacwaveformat;
+
+unsigned int _get_frame_length(const char* aac_header)
+{
+    unsigned int len = *(unsigned int*)(aac_header + 3);
+    //  len = ntohl(len); //Little Endian
+    len = len >> 6;
+    len = len << 19;
+    return len;
+}
+
+std::uint32_t _get_size(const BYTE* size)
+{
+    std::uint32_t x = 0;
+
+    for (size_t i = 0; i < sizeof(std::uint32_t); i++)
+    {
+        const std::uint8_t bit_shifts = (sizeof(std::uint32_t) - 1 - i) * 8;
+        x |= (std::uint32_t)size[i] << bit_shifts;
+    }
+    return x;
+}
+
+std::uint64_t _get_size_64(const BYTE* size)
+{
+    std::uint64_t x = 0;
+
+    for (size_t i = 0; i < sizeof(std::uint64_t); i++)
+    {
+        const std::uint8_t bit_shifts = (sizeof(std::uint64_t) - 1 - i) * 8;
+        x |= (std::uint64_t)size[i] << bit_shifts;
+    }
+    return x;
+}
+
+static int get_AAC_format(info* x)
+{
+    unsigned int a = 0;
+    do {
+#if 0
+        if (*(DWORD*)(x->buffer + a) == MAKEFOURCC('A', 'D', 'I', 'F')) { // "ADIF" signature
+            x->initbytes += a;
+            return -1; //Not supported
+        }
+#endif
+        if (x->buffer[a] == 0xff && (x->buffer[a + 1] & 0xf6) == 0xf0 && ((x->buffer[a + 2] & 0x3C) >> 2) < 12) { // ADTS header syncword
+            x->initbytes += a;
+            return 0;
+        }
+    } while (++a < x->buflen - 4);
+    return -1;
+}
+
 // openコールバック関数は、ファイルからデータを読み込んでデコードするために使用されます。
 FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode, FMOD_CREATESOUNDEXINFO* userexinfo)
 {
@@ -46,12 +103,18 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
     MP4HEADER* chunk = new MP4HEADER;
 
     FMOD_RESULT r;
+    std::uint32_t position = 0;
+    std::uint64_t size = 0;
+    BYTE bytes[8];
+
     r = state->functions->read(state, chunk->size, 4, &readBytes);
     r = state->functions->read(state, chunk->header, 4, &readBytes);
     // TODO: リトルエンディアン考慮しないとsizeが取れない（[\0][\0][\0][32])
-    int datalen = ((*(int *)chunk->size) >> 24 & 0xFF) - 8;
+    size = _get_size(chunk->size);
+
+    chunk->data = new BYTE[size - 8];
     // Get File Type
-    r = state->functions->read(state, chunk->data, datalen, &readBytes);
+    r = state->functions->read(state, chunk->data, size - 8, &readBytes);
 
     if (!(chunk->header[0] == 'f' && chunk->header[1] == 't' && chunk->header[2] == 'y' && chunk->header[3] == 'p'))
     {
@@ -62,26 +125,75 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
     {
         return FMOD_ERR_FORMAT;
     }
-
-    delete(chunk->data);
+    position += size;
     while (!(chunk->header[0] == 'm' && chunk->header[1] == 'd' && chunk->header[2] == 'a' && chunk->header[3] == 't'))
     {
+        delete(chunk->data);
+
+//      r = state->functions->seek(state, position, FMOD_CODEC_SEEK_METHOD_SET);
         r = state->functions->read(state, chunk->size, 4, &readBytes);
         r = state->functions->read(state, chunk->header, 4, &readBytes);
-        datalen = ((*(int*)chunk->size) >> 24 & 0xFF) - 8;;
-        r = state->functions->read(state, chunk->data, datalen, &readBytes);
+        if (chunk->size[0] & 0x00 && chunk->size[1] & 0x00 && chunk->size[2] & 0x00 && chunk->size[3] & 0x01)
+        {
+            r = state->functions->read(state, bytes, 8, &readBytes);
+            size = _get_size_64(bytes);
+            chunk->data = new BYTE[size - 16];
+            memset(chunk->data, 0, size - 16);
+            r = state->functions->read(state, chunk->data, size - 16, &readBytes);
+            size = size - 16;
+        }
+        else {
+            size = _get_size(chunk->size);
+            chunk->data = new BYTE[size - 8];
+            memset(chunk->data, 0, size - 8);
+            r = state->functions->read(state, chunk->data, size - 8, &readBytes);
+            size = size - 8;
+        }
+
+        position += size;
+        if (r == FMOD_ERR_FILE_EOF)
+            break;
     } 
 
     if (r != FMOD_OK)
+    {
+        delete(chunk->data);
         return FMOD_ERR_FILE_EOF;
+    }
 
     info* x = new info;
-    if (!x) 
+    if (!x)
+    {
+        delete(chunk->data);
         return FMOD_ERR_INTERNAL;
+    }
 
     memset(x, 0, sizeof(info));
+
+    x->buflen = size;
+    memcpy(x->buffer, chunk->data, x->buflen);
+
+    x->initbytes = 0;
+    if (get_AAC_format(x) == -1)
+    {
+        delete(x->buffer);
+        return FMOD_ERR_FILE_BAD;
+    }
+
     if (!(x->aac = NeAACDecOpen()))
+    {
+        delete(x->buffer);
         return FMOD_ERR_INTERNAL;
+    }
+
+    if (x->initbytes < 0 || x->initbytes > BUFFER_SIZE)
+    {
+        delete(x->buffer);
+        return FMOD_ERR_INTERNAL;
+    }
+
+    memmove(x->buffer, x->buffer + x->initbytes, size - x->initbytes);
+    x->buflen -= x->initbytes;
 
     NeAACDecConfigurationPtr config;
     /* Set configuration */
@@ -91,15 +203,14 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
     config->dontUpSampleImplicitSBR = 1;
     NeAACDecSetConfiguration(x->aac, config);
 
-    datalen = ((*(int*)chunk->size) >> 24 & 0xFF) - 8;;
     NeAACDecFrameInfo info;
-    if (NeAACDecInit(x->aac, (unsigned char*)chunk->data, datalen, &x->sample_rates, &x->channels) != 0)
+
+    if (NeAACDecInit(x->aac, x->buffer, x->buflen, &x->sample_rates, &x->channels) != 0)
     {
-        delete(chunk->data);
+        delete(x->buffer);
         return FMOD_ERR_INTERNAL;
     }
 
-    delete(chunk->data);
     aacwaveformat.channels = x->channels;
     aacwaveformat.format = FMOD_SOUND_FORMAT_PCM16;
     aacwaveformat.frequency = x->sample_rates;
@@ -117,20 +228,17 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
 // closeコールバック関数は、デコードしたデータを解放するために使用されます。
 FMOD_RESULT F_CALLBACK myCodec_close(FMOD_CODEC_STATE* state){
     // デコードしたデータを解放する
-	info* x = (info*)state->plugindata;
-	NeAACDecClose(x->aac);
-	delete(x);    
+    if (state->plugindata != nullptr)
+    {
+        info* x = (info*)state->plugindata;
+        if (x->aac)
+            NeAACDecClose(x->aac);
+        delete(x);
+    }
+
     return FMOD_OK;
 };
 
-unsigned int _get_frame_length(const char* aac_header)
-{
-    unsigned int len = *(unsigned int*)(aac_header + 3);
-//  len = ntohl(len); //Little Endian
-    len = len >> 6;
-    len = len << 19;
-    return len;
-}
 // readコールバック関数は、デコードしたデータを返すために使用されます。
 FMOD_RESULT F_CALLBACK myCodec_read(FMOD_CODEC_STATE* state, void* buffer, unsigned int sizebytes, unsigned int* bytesread)
 {
