@@ -2,6 +2,8 @@
 #include "fmod.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+//#include <winsock2.h>
 //#include "fmod_errors.h"
 
 #define MAX_CHANNELS 8
@@ -14,7 +16,7 @@ typedef unsigned char       BYTE;
 typedef unsigned short      WORD;
 
 typedef struct {
-    char size[4];
+    BYTE size[4];
     char header[4];
     BYTE* data;
 
@@ -46,8 +48,10 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
     FMOD_RESULT r;
     r = state->functions->read(state, chunk->size, 4, &readBytes);
     r = state->functions->read(state, chunk->header, 4, &readBytes);
+    // TODO: リトルエンディアン考慮しないとsizeが取れない（[\0][\0][\0][32])
+    int datalen = ((*(int *)chunk->size) >> 24 & 0xFF) - 8;
     // Get File Type
-    r = state->functions->read(state, chunk->data, *chunk->size - 8, &readBytes);
+    r = state->functions->read(state, chunk->data, datalen, &readBytes);
 
     if (!(chunk->header[0] == 'f' && chunk->header[1] == 't' && chunk->header[2] == 'y' && chunk->header[3] == 'p'))
     {
@@ -59,11 +63,13 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
         return FMOD_ERR_FORMAT;
     }
 
+    delete(chunk->data);
     while (!(chunk->header[0] == 'm' && chunk->header[1] == 'd' && chunk->header[2] == 'a' && chunk->header[3] == 't'))
     {
         r = state->functions->read(state, chunk->size, 4, &readBytes);
         r = state->functions->read(state, chunk->header, 4, &readBytes);
-        r = state->functions->read(state, chunk->data, *chunk->size - 8, &readBytes);
+        datalen = ((*(int*)chunk->size) >> 24 & 0xFF) - 8;;
+        r = state->functions->read(state, chunk->data, datalen, &readBytes);
     } 
 
     if (r != FMOD_OK)
@@ -83,22 +89,27 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
     config->outputFormat = FAAD_FMT_16BIT;
     config->downMatrix = 1;
     config->dontUpSampleImplicitSBR = 1;
-    NeAACDecSetConfiguration(x->neaac, config);
+    NeAACDecSetConfiguration(x->aac, config);
 
+    datalen = ((*(int*)chunk->size) >> 24 & 0xFF) - 8;;
     NeAACDecFrameInfo info;
-    if (NeAACDecInit(x->aac, chunk->data, *chunk->size - 8, &x->sample_rates, &x->channels) != 0)
+    if (NeAACDecInit(x->aac, (unsigned char*)chunk->data, datalen, &x->sample_rates, &x->channels) != 0)
+    {
+        delete(chunk->data);
         return FMOD_ERR_INTERNAL;
+    }
 
-    aacwaveformat.channels      = x->channels;
-    aacwaveformat.format        = FMOD_SOUND_FORMAT_PCM16;
-    aacwaveformat.frequency     = x->sample_rates;
-    aacwaveformat.pcmblocksize  = aacwaveformat.channels * 2;          2 = 16bit pcm 
-    aacwaveformat.lengthpcm     = 0xffffffff;// bytes converted to PCM samples ;
+    delete(chunk->data);
+    aacwaveformat.channels = x->channels;
+    aacwaveformat.format = FMOD_SOUND_FORMAT_PCM16;
+    aacwaveformat.frequency = x->sample_rates;
+    aacwaveformat.pcmblocksize = aacwaveformat.channels * 2;      //    2 = 16bit pcm 
+    aacwaveformat.lengthpcm = 0xffffffff;// bytes converted to PCM samples ;
 
-    state->numsubsounds         = 0; //number of 'subsounds' in this sound.  For most codecs this is 0, only multi sound codecs such as FSB or CDDA have subsounds. 
-    state->waveformat           = &aacwaveformat;
+    state->numsubsounds = 0; //number of 'subsounds' in this sound.  For most codecs this is 0, only multi sound codecs such as FSB or CDDA have subsounds. 
+    state->waveformat = &aacwaveformat;
 
-    state->plugindata           = x;
+    state->plugindata = x;
 
     return FMOD_OK;
 };
@@ -106,62 +117,95 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* state, FMOD_MODE usermode,
 // closeコールバック関数は、デコードしたデータを解放するために使用されます。
 FMOD_RESULT F_CALLBACK myCodec_close(FMOD_CODEC_STATE* state){
     // デコードしたデータを解放する
-	info* x = (info*)codec->plugindata;
+	info* x = (info*)state->plugindata;
 	NeAACDecClose(x->aac);
 	delete(x);    
     return FMOD_OK;
 };
 
+unsigned int _get_frame_length(const char* aac_header)
+{
+    unsigned int len = *(unsigned int*)(aac_header + 3);
+//  len = ntohl(len); //Little Endian
+    len = len >> 6;
+    len = len << 19;
+    return len;
+}
 // readコールバック関数は、デコードしたデータを返すために使用されます。
 FMOD_RESULT F_CALLBACK myCodec_read(FMOD_CODEC_STATE* state, void* buffer, unsigned int sizebytes, unsigned int* bytesread)
 {
     // デコードしたデータをbufferにコピーする
 	memset(buffer, 0, sizebytes);
 
-	if(size < 4096 * 2) {
-		*bytesread = size;
+	if(sizebytes < 4096 * 2) {
+		*bytesread = sizebytes;
 		return FMOD_OK;
 	}
-	info* x = (info*)codec->plugindata;
+
+    info* x = (info*)state->plugindata;
 	if(!x || !bytesread)
 		return FMOD_ERR_INTERNAL;
 
 	void* buf = NULL;
-	unsigned int buflen = 0;
-	unsigned int r;
-	
-	NeAACDecFrameInfo info;
+	unsigned int donelen = 0;
+    unsigned int wav_data_len = 0;
+    unsigned int aac_buflen = x->buflen;
+    unsigned int framelen;
+    NeAACDecFrameInfo info;
 
-	bool eof = false;
-	while(buflen < sizebytes || eof){
-		do {
-			r = 0;
-			FMOD_RESULT res;
-			buf = NeAACDecDecode(x->aac, &info, x->buffer, x->buflen);
+    while (donelen < aac_buflen)
+    {
+        framelen = _get_frame_length((char*)(x->buffer + donelen));
+        if (donelen + framelen > aac_buflen)
+        {
+            break;
+        }
 
-			if (info.error != 0) {
-				*bytesread = 0;
-				return FMOD_ERR_FILE_BAD;
-			}
-			if (info.bytesconsumed > x->buflen) {
-				x->buflen = 0;
-			} else {
-				x->buflen -= info.bytesconsumed;
-				memmove(x->buffer, x->buffer + info.bytesconsumed, x->buflen); // shift remaining data to start of buffer
-			}
-		} while (!info.samples || eof);
-		if(info.samples != 0) {
-			if (!buf)
-				return FMOD_ERR_INTERNAL;
-			memcpy((unsigned char*)buffer + buflen, buf, info.samples * 2);
-			buflen += info.samples * 2;
-		}
-	}
-    *read = buflen;
 
-	if(eof) 
-        return FMOD_ERR_FILE_EOF;
+        buf = NeAACDecDecode(x->aac, &info, x->buffer + donelen, framelen);
+        if (buf && info.error == 0) 
+        {
+            switch (info.samplerate)
+            {
+                case 22050:
+                {
+                    //22050Hz
+                    //src: 1024 samples, 2048 bytes
+                    //dst: 2048 samples, 4096 bytes
+                    short* ori = (short*)buf;
+                    short tmpbuf[2048];
+                    unsigned int tmplen = info.samples * 16 / 8 * 2;
+                    for (int i = 0, j = 0; i < info.samples; i += 2)
+                    {
+                        tmpbuf[j++] = ori[i];
+                        tmpbuf[j++] = ori[i + 1];
+                        tmpbuf[j++] = ori[i];
+                        tmpbuf[j++] = ori[i + 1];
+                    }
+                    memmove((unsigned char*)buffer + wav_data_len, tmpbuf, tmplen);
+                    wav_data_len += tmplen;
+                    break;
+                }
+                case 44100:
+                {
+                    //44100Hz
+                    //src: 2048 samples, 4096 bytes
+                    //dst: 2048 samples, 4096 bytes
+                    unsigned int tmplen = info.samples * 16 / 8;
+                    memmove((unsigned char*)buffer + wav_data_len, buf, tmplen);
+                    wav_data_len += tmplen;
+                    break;
+                }
+            }
+        } else {
+            *bytesread = 0;
+            return FMOD_ERR_FILE_BAD;
+        }
+        donelen += framelen;
 
+    }
+
+    *bytesread = wav_data_len;
 	return FMOD_OK;
 };
 
