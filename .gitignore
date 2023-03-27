@@ -31,7 +31,4 @@
 *.out
 *.app
 .vs/*
-codec_aac.vcxproj
-Debug/*
-Release/*
 x64/*
