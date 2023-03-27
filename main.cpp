@@ -1,12 +1,10 @@
+#pragma comment(lib, "libfaad.lib")
+
 #include <iterator>
 #include <vector>
 #include <algorithm>
 #include "neaacdec.h"
 #include "fmod.h"
-
-#define MAX_CHANNELS 8
-#define BUFFER_SIZE (FAAD_MIN_STREAMSIZE * MAX_CHANNELS)
-#define MAX_PERCENTS 384
 
 typedef unsigned long       DWORD;
 typedef int                 BOOL;
@@ -32,7 +30,6 @@ typedef struct
     std::uint32_t pcmblocks;
     std::uint64_t position;
 } info;
-static FMOD_CODEC_WAVEFORMAT    aacwaveformat;
 
 std::uint32_t _get_size(const std::byte* size)
 {
