@@ -101,7 +101,8 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* codec, FMOD_MODE usermode,
 
     // ftype:[M4A]　データ領域からファイルタイプの取得
     r = codec->functions->read(codec, chunk->data.data(), size - 8, &readBytes);
-    if (std::memcmp(chunk->data.data(), "M4A ", 4) != 0)
+    if (std::memcmp(chunk->data.data(), "M4A ", 4) != 0
+    &&  std::memcmp(chunk->data.data(), "mp42", 4) != 0)
         return FMOD_ERR_FORMAT; // フォーマットエラー
 
     // mdatブロックまでループ
