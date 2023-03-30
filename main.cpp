@@ -3,6 +3,8 @@
 #include <iterator>
 #include <vector>
 #include <algorithm>
+#include <string>
+#include <unordered_map>
 #include "neaacdec.h"
 #include "fmod.h"
 
@@ -29,6 +31,10 @@ typedef struct
     std::uint32_t lengthpcm;
     std::uint32_t pcmblocks;
     std::uint64_t position;
+
+    std::vector<std::byte> title;
+    std::vector<std::byte> artist;
+    std::vector<std::byte> album;
 } info;
 
 std::uint32_t _get_size(const std::byte* size)
@@ -105,8 +111,18 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* codec, FMOD_MODE usermode,
     &&  std::memcmp(chunk->data.data(), "mp42", 4) != 0)
         return FMOD_ERR_FORMAT; // フォーマットエラー
 
+    bool mdat = false;
+    bool moov = false;
+
+    // API連携データ
+    info* x = new info;
+    if (!x)
+        return FMOD_ERR_INTERNAL;
+
+    memset(x, 0, sizeof(info));
+
     // mdatブロックまでループ
-    while (std::memcmp(chunk->header, "mdat", 4) != 0)
+    while (!mdat || !moov)
     {
         // ヘッダブロック8バイト読み込み
         r = codec->functions->read(codec, chunk->size, 4, &readBytes);
@@ -136,18 +152,132 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* codec, FMOD_MODE usermode,
         // 累計読み込みサイズがファイルサイズ以上の場合はループ脱出
         if (totalRead >= totalSize)
             break;
+
+        if (std::memcmp(chunk->header, "mdat", 4) == 0)
+            mdat = true;
+
+        // タグ情報を取得するため/moov/udta/meta/ilst配下の情報を力業で取得している
+        // もっといい方法があるかもしれんが頭回らんので許して
+        // いやほんとこの処理は無いわ
+        if (std::memcmp(chunk->header, "moov", 4) == 0)
+        {
+            MP4HEADER* tmpHead = new MP4HEADER();
+            std::vector <std::byte> tmpdata;
+            std::uint32_t shift = 0;
+
+            std::memcpy(tmpHead->size, chunk->data.data() + shift, 4);
+            shift += 4;
+            std::memcpy(tmpHead->header, chunk->data.data() + shift, 4);
+            shift += 4;
+
+            tmpHead->data.clear();
+            tmpHead->data.resize(_get_size(tmpHead->size) - 8);
+            // moovのデータ領域から次の階層を退避
+            std::memcpy(tmpHead->data.data(), chunk->data.data() + shift, _get_size(tmpHead->size) - 8);
+            shift += (_get_size(tmpHead->size) - 8);
+
+            // udtaまでスキップ
+            while (std::memcmp(tmpHead->header, "udta", 4) != 0)
+            {
+                std::memcpy(tmpHead->size, chunk->data.data() + shift, 4);
+                shift += 4;
+                std::memcpy(tmpHead->header, chunk->data.data() + shift, 4);
+                shift += 4;
+                if (_get_size(tmpHead->size) > 0)
+                {
+                    tmpdata.clear();
+                    tmpdata.resize(_get_size(tmpHead->size) - 8);
+                    std::memcpy(tmpdata.data(), chunk->data.data() + shift, _get_size(tmpHead->size) - 8);
+                    shift += (_get_size(tmpHead->size) - 8);
+                }
+            }
+
+            // udta取得できたなら
+            if (std::memcmp(tmpHead->header, "udta", 4) == 0)
+            {
+                std::memcpy(tmpHead->size, tmpdata.data(), 4);
+                std::memcpy(tmpHead->header, tmpdata.data() + 4, 4);
+                tmpHead->data.resize(_get_size(tmpHead->size) - 8);
+                std::memcpy(tmpHead->data.data(), tmpdata.data() + 8, _get_size(tmpHead->size) - 8);
+
+                // metaあるよね
+                if (std::memcmp(tmpHead->header, "meta", 4) == 0)
+                {
+                    shift = 4;
+                    std::memcpy(tmpHead->size, tmpHead->data.data() + shift, 4);
+                    shift += 4;
+                    std::memcpy(tmpHead->header, tmpHead->data.data() + shift, 4);
+                    // 謎の4バイトがある
+                    shift += 4;
+                    shift += (_get_size(tmpHead->size) - 8);
+
+                    // ilstタグまでスキップ
+                    while (std::memcmp(tmpHead->header, "ilst", 4) != 0)
+                    {
+                        std::memcpy(tmpHead->size, tmpHead->data.data() + shift, 4);
+                        shift += 4;
+                        std::memcpy(tmpHead->header, tmpHead->data.data() + shift, 4);
+                        shift += 4;
+
+                        // ilstデータ部がメタデータになるのでここでブレイク
+                        if (std::memcmp(tmpHead->header, "ilst", 4) == 0)
+                            break;
+                        shift += (_get_size(tmpHead->size) - 8);
+                    }
+
+                    // ilstあるはず
+                    if (std::memcmp(tmpHead->header, "ilst", 4) == 0)
+                    {
+                        // 必要なタグ情報取得し終わるまで
+                        while (shift < tmpHead->data.size())
+                        {
+                            std::memcpy(tmpHead->size, tmpHead->data.data() + shift, 4);
+                            shift += 4;
+                            std::memcpy(tmpHead->header, tmpHead->data.data() + shift, 4);
+                            shift += 4;
+                            tmpdata.clear();
+                            tmpdata.resize(_get_size(tmpHead->size) - 8);
+                            std::memcpy(tmpdata.data(), tmpHead->data.data() + shift, _get_size(tmpHead->size) - 8);
+
+                            // 🄫ARTタグ
+                            if (tmpHead->header[0] == std::byte(0xA9) && tmpHead->header[1] == std::byte(0x41) && tmpHead->header[2] == std::byte(0x52) && tmpHead->header[3] == std::byte(0x54))
+                            {
+                                std::string name = "ARTIST";
+                                // データ部に謎の16バイトがある為先頭からスキップし、スキップ分の領域は減らす
+                                x->artist.resize(_get_size(tmpHead->size) - 24);
+                                std::memcpy(x->artist.data(), tmpdata.data() + 16, _get_size(tmpHead->size) - 24);
+                                codec->functions->metadata(codec, FMOD_TAGTYPE_ID3V2, name.data(), x->artist.data(), x->artist.size(), FMOD_TAGDATATYPE_STRING_UTF8, 1);
+                            }
+                            // 🄫albタグ
+                            if (tmpHead->header[0] == std::byte(0xA9) && tmpHead->header[1] == std::byte(0x61) && tmpHead->header[2] == std::byte(0x6C) && tmpHead->header[3] == std::byte(0x62))
+                            {
+                                std::string name = "ALBUM";
+                                // データ部に謎の16バイトがある為先頭からスキップ、スキップ分の領域は減らす
+                                x->album.resize(_get_size(tmpHead->size) - 24);
+                                std::memcpy(x->album.data(), tmpdata.data() + 16, _get_size(tmpHead->size) - 24);
+                                codec->functions->metadata(codec, FMOD_TAGTYPE_ID3V2, name.data(), x->album.data(), x->album.size(), FMOD_TAGDATATYPE_STRING_UTF8, 1);
+                            }
+                            // 🄫namタグ
+                            if (tmpHead->header[0] == std::byte(0xA9) && tmpHead->header[1] == std::byte(0x6E) && tmpHead->header[2] == std::byte(0x61) && tmpHead->header[3] == std::byte(0x6D))
+                            {
+                                std::string name = "TITLE";
+                                // データ部に謎の16バイトがある為先頭からスキップ、スキップ分の領域は減らす
+                                x->title.resize(_get_size(tmpHead->size) - 24);
+                                std::memcpy(x->title.data(), tmpdata.data() + 16, _get_size(tmpHead->size) - 24);
+                                codec->functions->metadata(codec, FMOD_TAGTYPE_ID3V2, name.data(), x->title.data(), x->title.size(), FMOD_TAGDATATYPE_STRING_UTF8, 1);
+                            }
+                            shift += (_get_size(tmpHead->size) - 8);
+                        }
+                    }
+                }
+            }
+            moov = true;
+        }
     }
 
-    // 最後に読み込んだヘッダがmdatでは無かった場合は見つからなかったとしてエラー
-    if (std::memcmp(chunk->header, "mdat", 4) != 0)
+    // mdat見つからなかった場合はエラー
+    if (!mdat)
         return FMOD_ERR_FORMAT; // フォーマットエラー
-
-    // API連携データ
-    info* x = new info;
-    if (!x)
-        return FMOD_ERR_INTERNAL;
-
-    memset(x, 0, sizeof(info));
 
     // 最後のmdatのデータサイズ
     x->bufferlen = readBytes;
@@ -250,7 +380,8 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* codec, FMOD_MODE usermode,
 };
 
 // closeコールバック関数は、デコードしたデータを解放するために使用されます。
-FMOD_RESULT F_CALLBACK myCodec_close(FMOD_CODEC_STATE* codec){
+FMOD_RESULT F_CALLBACK myCodec_close(FMOD_CODEC_STATE* codec)
+{
     // デコードしたデータを解放する
     // デコーダはクローズ忘れずに
     if (codec->plugindata != nullptr)
