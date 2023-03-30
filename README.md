@@ -12,13 +12,13 @@ C# Example.
 ```C#
 public void LoadPlugins()
 {
-			uint handle;
-			PLUGINTYPE plugintype;
-			uint version;
+	uint handle;
+	PLUGINTYPE plugintype;
+	uint version;
 
-			FmodSystem.setPluginPath(".\\Plugins");
-			FmodSystem.loadPlugin("codec_mp4.dll", out handle, 100);
-//  	FmodSystem.getPluginInfo(handle, out plugintype, out version);
-      return;
+	FmodSystem.setPluginPath(".\\Plugins");
+	FmodSystem.loadPlugin("codec_mp4.dll", out handle, 100);
+//	FmodSystem.getPluginInfo(handle, out plugintype, out version);
+	return;
 }
 ```
