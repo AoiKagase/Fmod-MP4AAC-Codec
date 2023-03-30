@@ -1,4 +1,24 @@
 # Fmod-MP4AAC-Codec
-MP4/AAC Codec
+FMODライブラリを利用してiTunes製M4A/AACを再生するコーデックです。
+Codec to play iTunes MP4/AAC using FMOD library.
 
-TODO:GET TAG.
+タグの解析を無理やり行っているため、iTunes以外のM4A/AACではタグ解析に失敗する可能性があります。
+Because tag analysis is performed for iTunes, tag analysis may fail for non-iTunes M4A/AAC.
+
+利用に際してはFMODライブラリのドキュメントを参照してください。
+Please refer to the FMOD library documentation for details.
+
+C# Example.
+```C#
+public void LoadPlugins()
+{
+			uint handle;
+			PLUGINTYPE plugintype;
+			uint version;
+
+			FmodSystem.setPluginPath(".\\Plugins");
+			FmodSystem.loadPlugin("codec_mp4.dll", out handle, 100);
+//  	FmodSystem.getPluginInfo(handle, out plugintype, out version);
+      return;
+}
+```
