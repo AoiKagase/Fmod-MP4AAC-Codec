@@ -153,8 +153,16 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* codec, FMOD_MODE usermode,
         if (totalRead >= totalSize)
             break;
 
-        if (std::memcmp(chunk->header, "mdat", 4) == 0)
+        if (std::memcmp(chunk->header, "mdat", 4) == 0) 
+        {
+            // mdatのデータサイズ確保
+            x->bufferlen = readBytes;
+            x->buffer.clear();
+            x->buffer.resize(x->bufferlen);
+            // データ部をAPI連携データへ
+            std::memcpy(x->buffer.data(), chunk->data.data(), x->bufferlen);
             mdat = true;
+        }
 
         // タグ情報を取得するため/moov/udta/meta/ilst配下の情報を力業で取得している
         // もっといい方法があるかもしれんが頭回らんので許して
@@ -278,13 +286,6 @@ FMOD_RESULT F_CALLBACK myCodec_open(FMOD_CODEC_STATE* codec, FMOD_MODE usermode,
     // mdat見つからなかった場合はエラー
     if (!mdat)
         return FMOD_ERR_FORMAT; // フォーマットエラー
-
-    // 最後のmdatのデータサイズ
-    x->bufferlen = readBytes;
-    x->buffer.clear();
-    x->buffer.resize(x->bufferlen);
-    // データ部をAPI連携データへ
-    std::memcpy(x->buffer.data(), chunk->data.data(), x->bufferlen);
 
     // FAAD2デコーダオープン
     if (!(x->aac = NeAACDecOpen()))
